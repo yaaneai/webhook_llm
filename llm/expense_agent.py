@@ -133,23 +133,19 @@ async def run_application_agent(user_message: str):
 
 
 def get_response_text(runner) -> str:
-    """Extract final response text from Runner result (handoff flow may have multiple turns)."""
+    """Return only the final output string from RunResult for WhatsApp (no RunResult repr)."""
     if runner is None:
         return ""
-    ctx = getattr(runner, "context", None) or getattr(runner, "run_context", None)
-    if ctx is not None:
-        messages = getattr(ctx, "messages", None) or getattr(ctx, "items", [])
-        for m in reversed(list(messages)):
-            role = getattr(m, "role", None) or getattr(m, "type", "")
-            if role == "assistant" or "assistant" in str(role).lower():
-                content = getattr(m, "content", None) or getattr(m, "text", None)
-                if content:
-                    return content if isinstance(content, str) else str(content)
+    # RunResult.final_output is the last agent's output (str or custom type)
+    out = getattr(runner, "final_output", None)
+    if out is not None:
+        return out if isinstance(out, str) else str(out)
+    # Fallback: try final_output() as method (older API)
     if hasattr(runner, "final_output") and callable(runner.final_output):
         out = runner.final_output()
         if out is not None:
-            return str(out)
-    return str(runner)
+            return out if isinstance(out, str) else str(out)
+    return ""
 
 
 # ---------------------------------------------------------------------------
