@@ -8,6 +8,7 @@ import os
 from datetime import datetime
 
 import httpx
+from llm.expense_agent import get_response_text, run_application_agent
 from fastapi import FastAPI, Request
 from fastapi.responses import PlainTextResponse
 
@@ -39,6 +40,31 @@ async def mark_read_and_typing(phone_number_id: str, message_id: str) -> bool:
             r = await client.post(url, json=payload, headers=headers)
             data = r.json() if r.content else {}
             return data.get("success") is True
+    except Exception:
+        return False
+
+
+async def response_to_whatsapp(phone_number_id: str, to_wa_id: str, text: str) -> bool:
+    """POST to Graph API: send text message to WhatsApp user. Same URL/headers as mark_read."""
+    if not WHATSAPP_ACCESS_TOKEN or not phone_number_id or not to_wa_id or not text:
+        return False
+    url = f"{GRAPH_API_BASE}/{phone_number_id}/messages"
+    payload = {
+        "messaging_product": "whatsapp",
+        "recipient_type": "individual",
+        "to": to_wa_id,
+        "type": "text",
+        "text": {"body": text},
+    }
+    headers = {
+        "Authorization": f"Bearer {WHATSAPP_ACCESS_TOKEN}",
+        "Content-Type": "application/json",
+    }
+    try:
+        async with httpx.AsyncClient() as client:
+            r = await client.post(url, json=payload, headers=headers)
+            data = r.json() if r.content else {}
+            return data.get("messages") is not None  # success returns messages array
     except Exception:
         return False
 
@@ -113,8 +139,15 @@ async def webhook_receive(request: Request):
             message_id = msg.get("id")
             success = await mark_read_and_typing(phone_number_id or "", message_id or "")
             if success:
-                print("message text:", msg.get("text"))
-                print("message type:", msg.get("type"))
+                user_text = (msg.get("text") or "").strip()
+                if user_text:
+                    runner = await run_application_agent(user_text)
+                    response = get_response_text(runner)
+                    print("message text:", user_text)
+                    print("response:", response)
+                    if response:
+                        to_wa_id = msg.get("from") or parsed.get("wa_id") or ""
+                        await response_to_whatsapp(phone_number_id or "", to_wa_id, response)
     else:
         print(json.dumps(body, indent=2))
     return {"ok": True}
