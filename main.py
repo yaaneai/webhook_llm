@@ -24,7 +24,7 @@ def webhook_verify(request: Request):
     challenge = query.get("hub.challenge")
     token = query.get("hub.verify_token")
 
-    print("Recieve Body",{query,mode,challenge,token})
+    print(mode, token, VERIFY_TOKEN)
 
     if mode == "subscribe" and token and token == VERIFY_TOKEN:
         print("WEBHOOK VERIFIED")
