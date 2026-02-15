@@ -18,7 +18,12 @@ applicationInstruction = "Monthly expense app. User logs spends; you extract amo
 
 welcomeAgentsName = "Welcome Agent"
 welcomeAgentsInst = (
-    f"Welcome agent. Greeting → short, soft reply. Out-of-scope (e.g. weather, off-topic) → block. Scope: {applicationInstruction}"
+    "You are a warm, natural person helping with a monthly expense app—not a generic bot.\n"
+    "- When the user says hi/hello, reply as a real person would: friendly, varied, and slightly playful.\n"
+    "- If a profile name is provided in the input (e.g. 'Profile name: John'), use it naturally in your reply (e.g. 'Hey John!', 'Hi there, John!')\n"
+    "- Every reply must feel unique: vary your opening (Hey / Hi / Hello there / Hey there), wording, and tone. Never repeat the same phrase.\n"
+    "- Add 1–2 reaction emojis in the mix (e.g. 👋 😊 🙌 ✨ 👍), different each time—never the same set.\n"
+    "- Keep it short (1–2 sentences). Out-of-scope (weather, off-topic) → block. Scope: " + applicationInstruction
 )
 
 
@@ -62,8 +67,15 @@ welcomeAgents = Agent(
 classifyExpenseAgentsName = "Classify Expense Agent"
 classifyExpenseAgentsInst = (
     f"Expense agent. Extract amount (number), date (YYYY-MM-DD), purpose (one word). Scope: {applicationInstruction}\n"
-    "Date: use 'Current date: YYYY-MM-DD' in context for today; yesterday = previous day. Never invent date.\n"
-    "Output only amount, date, purpose. No extra text. Example: '450 for shopping today' → amount=450, date=from context, purpose=shopping."
+    "Date: use 'Current date: YYYY-MM-DD' in context for today; yesterday = previous day. Never invent date.\n\n"
+    "Your reply to the user must be user-friendly and in two parts:\n"
+    "1. First, write one or two short, natural sentences acknowledging their expense (e.g. 'Got it, I've noted that.', 'Recorded! Here’s what I saved.', 'Done! Here’s the summary.'). Vary the wording each time.\n"
+    "2. Then show the spending as a clear list. Use exactly this format (WhatsApp bold is *text*):\n"
+    "   • Amount: *<value>*\n"
+    "   • Date: *<YYYY-MM-DD>*\n"
+    "   • Purpose: *<value>*\n"
+    "Output this full message as your reply—no raw key=value lines. Example for '300 for snacks today': "
+    "'Got it, I've noted that. 👍 Here’s what I saved:\n• Amount: *300*\n• Date: *2026-02-15*\n• Purpose: *snacks*'"
 )
 
 
@@ -124,12 +136,16 @@ applicationAgent = Agent(
 )
 
 
-async def run_application_agent(user_message: str):
-    """Run applicationAgent; returns Runner result. Prepends current date for expense agent."""
+async def run_application_agent(user_message: str, profile_name: str = ""):
+    """Run applicationAgent; returns Runner result. Prepends profile name and current date for LLM context."""
     from datetime import datetime
     today = datetime.utcnow().strftime("%Y-%m-%d")
-    input_with_date = f"Current date: {today}\n\nUser: {user_message}"
-    return await Runner.run(applicationAgent, input_with_date)
+    parts = [f"Current date: {today}"]
+    if profile_name and profile_name.strip():
+        parts.append(f"Profile name: {profile_name.strip()}")
+    parts.append(f"User: {user_message}")
+    input_with_context = "\n\n".join(parts)
+    return await Runner.run(applicationAgent, input_with_context)
 
 
 def get_response_text(runner) -> str:
@@ -153,7 +169,7 @@ def get_response_text(runner) -> str:
 # ---------------------------------------------------------------------------
 if __name__ == "__main__" and ENV == "development":
     import asyncio
-    _sample = os.environ.get("DEV_MESSAGE", "Hey what is weather in Mumbai today?")
+    _sample = os.environ.get("DEV_MESSAGE", "Today i really spend too much amount which 1800 for shopping itself and 700 for food and then finally 200 for bus far")
     _runner = asyncio.run(run_application_agent(_sample))
     _response = get_response_text(_runner)
     print("--- response ---")

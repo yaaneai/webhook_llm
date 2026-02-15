@@ -135,13 +135,14 @@ async def webhook_receive(request: Request):
     if parsed:
         print("Parsed:", json.dumps(parsed, indent=2))
         phone_number_id = parsed.get("phone_number_id")
-        for msg in parsed.get("messages") or []:
+        for msg in parsed.get("messages", []) or []:
             message_id = msg.get("id")
             success = await mark_read_and_typing(phone_number_id or "", message_id or "")
             if success:
                 user_text = (msg.get("text") or "").strip()
                 if user_text:
-                    runner = await run_application_agent(user_text)
+                    profile_name = parsed.get("profile_name") or ""
+                    runner = await run_application_agent(user_text, profile_name=profile_name)
                     response = get_response_text(runner)
                     print("message text:", user_text)
                     print("response:", response)
