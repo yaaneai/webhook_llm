@@ -84,8 +84,6 @@ async def upsert_user_conservation(
                 .update(
                     {
                         "profile_name": profile_name,
-                        "user_msg": user_text,
-                        "llm_response": llm_response,
                         "msg_initated_at": initiated_at,
                     }
                 )
@@ -101,8 +99,6 @@ async def upsert_user_conservation(
             "phone_number_id": phone_number_id,
             "phone_number": phone_number,
             "profile_name": profile_name,
-            "user_msg": user_text,
-            "llm_response": llm_response,
             "msg_initated_at": initiated_at,
         }
         created = supabase.table("user_conservation").insert(payload).execute()
@@ -194,8 +190,12 @@ async def claim_message_once(parsed: dict, msg: dict) -> bool:
         if "duplicate key" in err or "23505" in err:
             print(f"Duplicate webhook skipped for message_id={message_id}")
             return False
+        if "pgrst205" in err or "could not find the table" in err:
+            print("Dedup table missing in Supabase schema cache; processing message without dedup.")
+            return True
         print(f"Supabase claim_message_once failed: {e}")
-        return False
+        # Fail open so webhook processing continues even if dedup store is unavailable.
+        return True
 
 
 async def mark_read_and_typing(phone_number_id: str, message_id: str) -> bool:
