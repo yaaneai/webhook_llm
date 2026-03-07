@@ -311,6 +311,7 @@ async def process_parsed_messages(parsed: dict) -> None:
 
         to_wa_id = msg.get("from") or parsed.get("wa_id") or ""
         user_row = await upsert_user_conservation(parsed, msg, user_text, response)
+        print('User insert or exisiting collection:',user_row)
         if user_row:
             initiated_at_iso = _parse_wa_timestamp(msg.get("timestamp"))
             await insert_conversation_history(
